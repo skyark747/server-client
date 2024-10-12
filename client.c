@@ -115,17 +115,16 @@ bool hasImageExtension(const char *filename)
 }
 
 // File encryption
-char *encrypt(const char *a)
+char *encrypt(const char *a, int size)
 {
     static char encrypted[1024];
 
     char ch = ' ';
     char pre = ' ';
     int count = 0;
-    int size = strlen(a);
     int index = 0;
 
-    for (int i = 0; i < size; i++)
+    for (int i = 0; i <= size; i++)
     {
         ch = a[i];
         if (ch == pre)
@@ -143,16 +142,14 @@ char *encrypt(const char *a)
         }
         pre = ch;
     }
-
     encrypted[index] = '\0';
     return encrypted;
 }
 
 // File decryption
-char *decryption(const char *a)
+char *decryption(const char *a, int size)
 {
     static char decrypted[1024];
-    int size = strlen(a);
     int index = 0;
 
     char ch = ' ';
@@ -352,9 +349,10 @@ int command(char str[], int clientsocket, char user[])
                 }
                 else
                 {
-                    while (fgets(ch, 1024, file) != NULL)
+                    size_t n;
+                    while ((n = fread(ch, 1, 1024, file)) > 0)
                     {
-                        str = encrypt(ch);
+                        str = encrypt(ch, n);
                         send(clientsocket, str, strlen(str), 0);
                         memset(ch, '\0', 1024);
                     }
@@ -439,14 +437,15 @@ int command(char str[], int clientsocket, char user[])
                 if (c[byte - 1] == '$')
                 {
                     c[byte - 1] = '\0';
-                    str = decryption(c);
-                    fputs(str, wr);
+                    str = decryption(c, byte);
+
+                    fwrite(str, 1, strlen(str), wr);
                     flag = true;
                 }
                 else
                 {
-                    str = decryption(c);
-                    fputs(str, wr);
+                    str = decryption(c, byte);
+                    fwrite(str, 1, strlen(str), wr);
                     c[0] = '\0';
                 }
 

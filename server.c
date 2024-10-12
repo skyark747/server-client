@@ -390,47 +390,23 @@ int handle(int clientsocket, Details *users)
                 int byte;
                 bool flag = false;
 
-                if (hasImageExtension(file_name))
+                do
                 {
-                    do
+                    byte = recv(clientsocket, c, sizeof(c), 0);
+                    c[byte] = '\0';
+                    if (c[byte - 1] == '$')
                     {
-                        byte = recv(clientsocket, c, sizeof(c), 0);
-                        c[byte] = '\0';
-                        if (c[byte - 1] == '$')
-                        {
-                            c[byte - 1] = '\0';
-                            fwrite(c, 1, byte, file);
-                            flag = true;
-                        }
-                        else
-                        {
-                            fwrite(c, 1, byte, file);
-                            c[0] = '\0';
-                        }
-
-                    } while (!flag);
-                }
-                else
-                {
-
-                    do
+                        c[byte - 1] = '\0';
+                        fwrite(c, 1, byte, file);
+                        flag = true;
+                    }
+                    else
                     {
-                        byte = recv(clientsocket, c, sizeof(c), 0);
-                        c[byte] = '\0';
-                        if (c[byte - 1] == '$')
-                        {
-                            c[byte - 1] = '\0';
-                            fputs(c, file);
-                            flag = true;
-                        }
-                        else
-                        {
-                            fputs(c, file);
-                            c[0] = '\0';
-                        }
+                        fwrite(c, 1, byte, file);
+                        c[0] = '\0';
+                    }
 
-                    } while (!flag);
-                }
+                } while (!flag);
 
                 fclose(file);
 
@@ -455,21 +431,10 @@ int handle(int clientsocket, Details *users)
             char ch[1024];
             if (file)
             {
-                if (hasImageExtension(full_file_name))
+                size_t n;
+                while ((n = fread(ch, 1, 1024, file)) > 0)
                 {
-                    size_t n;
-                    while ((n = fread(ch, 1, 1024, file)) > 0)
-                    {
-                        send(clientsocket, ch, n, 0);
-                    }
-                }
-                else
-                {
-                    while (fgets(ch, 1024, file) != NULL)
-                    {
-                        sleep(0.5);
-                        send(clientsocket, ch, strlen(ch), 0);
-                    }
+                    send(clientsocket, ch, n, 0);
                 }
 
                 char c = '$';
