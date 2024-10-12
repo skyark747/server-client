@@ -467,6 +467,7 @@ int handle(int clientsocket, Details *users)
                 {
                     while (fgets(ch, 1024, file) != NULL)
                     {
+                        sleep(0.5);
                         send(clientsocket, ch, strlen(ch), 0);
                     }
                 }

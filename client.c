@@ -114,10 +114,10 @@ bool hasImageExtension(const char *filename)
     return false; // File does not have a valid image extension
 }
 
-//File encryption
+// File encryption
 char *encrypt(const char *a)
 {
-    static char encrypted[500];
+    static char encrypted[1024];
 
     char ch = ' ';
     char pre = ' ';
@@ -148,10 +148,10 @@ char *encrypt(const char *a)
     return encrypted;
 }
 
-//File decryption
+// File decryption
 char *decryption(const char *a)
 {
-    static char decrypted[500];
+    static char decrypted[1024];
     int size = strlen(a);
     int index = 0;
 
@@ -169,28 +169,25 @@ char *decryption(const char *a)
     return decrypted;
 }
 
-//Image encryption
-char* Img_encrypt(const char* a)
+// Image encryption
+char *Img_encrypt(const char *a, int size)
 {
-    static char encrypted[500];
-
-    int size = strlen(a);
+    static char encrypted[1024];
 
     for (int i = 0; i < size; i++)
     {
         encrypted[i] = a[i] + 3;
     }
-    
+
     return encrypted;
 }
 
-//Image decryption
-char* Img_decryption(const char* a)
+// Image decryption
+char *Img_decryption(const char *a, int size)
 {
-    static char decrypted[500];
+    static char decrypted[1024];
 
-    int size = strlen(a);
-    for (int i = 0; i < size; i ++)
+    for (int i = 0; i < size; i++)
     {
         decrypted[i] = a[i] - 3;
     }
@@ -348,9 +345,9 @@ int command(char str[], int clientsocket, char user[])
                     size_t n;
                     while ((n = fread(ch, 1, 1024, file)) > 0)
                     {
-                        str = Img_encrypt(ch);
-                        send(clientsocket, str, strlen(str), 0);
-						memset(ch, '\0', 1024);
+                        str = Img_encrypt(ch, n);
+                        send(clientsocket, str, n, 0);
+                        memset(ch, '\0', 1024);
                     }
                 }
                 else
@@ -358,7 +355,6 @@ int command(char str[], int clientsocket, char user[])
                     while (fgets(ch, 1024, file) != NULL)
                     {
                         str = encrypt(ch);
-                        str[strlen(str)] = '\n';
                         send(clientsocket, str, strlen(str), 0);
                         memset(ch, '\0', 1024);
                     }
@@ -392,7 +388,7 @@ int command(char str[], int clientsocket, char user[])
             return 1;
         }
 
-        const char *d_path = "/home/skyark/Downloads/";
+        const char *d_path = "/home/skyark/Documents/";
         char *path = (char *)malloc(strlen(d_path) + strlen(name) + 1);
         strcpy(path, d_path);
         strcat(path, name);
@@ -419,14 +415,15 @@ int command(char str[], int clientsocket, char user[])
                 if (c[byte - 1] == '$')
                 {
                     c[byte - 1] = '\0';
-                    str = Img_decryption(c);
-                    fwrite(str, 1,strlen(str), wr);
+                    str = Img_decryption(c, byte);
+
+                    fwrite(str, 1, byte, wr);
                     flag = true;
                 }
                 else
                 {
-                    str = Img_decryption(c);
-                    fwrite(str, 1, strlen(str), wr);
+                    str = Img_decryption(c, byte);
+                    fwrite(str, 1, byte, wr);
                     c[0] = '\0';
                 }
 
@@ -541,4 +538,3 @@ int main()
     close(clientsocket);
     return 0;
 }
-
