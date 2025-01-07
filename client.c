@@ -11,6 +11,301 @@
 
 #define PORT 12345
 
+#define MAX_HEAP_SIZE 100
+#define HEAP_SIZE 30720
+
+typedef struct
+{
+    char *memory;
+    int size;
+} Node;
+
+typedef struct
+{
+    Node heap[MAX_HEAP_SIZE];
+    int count;
+} MinHeap;
+
+void initializeHeap(MinHeap *h)
+{
+    h->count = 0;
+}
+void heapifyUp(MinHeap *h, int index)
+{
+    int parent = (index - 1) / 2;
+    if (parent >= 0 && h->heap[index].size < h->heap[parent].size)
+    {
+        Node temp = h->heap[index];
+        h->heap[index] = h->heap[parent];
+        h->heap[parent] = temp;
+
+        heapifyUp(h, parent);
+    }
+}
+void heapifyDown(MinHeap *h, int index)
+{
+    int smallest = index;
+    int left = 2 * index + 1;
+    int right = 2 * index + 2;
+
+    if (left < h->count && h->heap[left].size < h->heap[smallest].size)
+    {
+        smallest = left;
+    }
+    if (right < h->count && h->heap[right].size < h->heap[smallest].size)
+    {
+        smallest = right;
+    }
+
+    if (smallest != index)
+    {
+        Node temp = h->heap[index];
+        h->heap[index] = h->heap[smallest];
+        h->heap[smallest] = temp;
+
+        heapifyDown(h, smallest);
+    }
+}
+void insertHeap(MinHeap *h, Node value)
+{
+    if (h->count >= MAX_HEAP_SIZE)
+    {
+        printf("Heap overflow\n");
+        return;
+    }
+
+    h->heap[h->count] = value;
+    h->count++;
+    heapifyUp(h, h->count - 1);
+}
+
+Node extractMin(MinHeap *h)
+{
+    if (h->count <= 0)
+    {
+        printf("Heap underflow\n");
+        Node empty = {NULL, -1};
+        return empty;
+    }
+
+    Node minValue = h->heap[0];
+    h->heap[0] = h->heap[h->count - 1];
+    h->count--;
+
+    heapifyDown(h, 0);
+    return minValue;
+}
+Node getMin(MinHeap *h)
+{
+    if (h->count <= 0)
+    {
+        printf("Heap underflow\n");
+        Node empty = {NULL, -1};
+        return empty;
+    }
+
+    Node minValue = h->heap[0];
+    return minValue;
+}
+
+typedef struct Heap
+{
+    char arr[HEAP_SIZE];
+    int bytes;
+    int id;
+} Heap;
+
+void Heap_init(Heap *heap, MinHeap *h)
+{
+    memset(heap->arr, -1, HEAP_SIZE);
+    heap->bytes = 0;
+    heap->id = 0;
+    Node value = {heap->arr, HEAP_SIZE};
+    insertHeap(h, value);
+}
+
+int Heap_get_free_mem(Heap *heap)
+{
+    return HEAP_SIZE - heap->bytes;
+}
+
+void *Heap_ITUN(Heap *heap, int size, MinHeap *h)
+{
+    if (heap->bytes + size + 1 > HEAP_SIZE)
+    {
+        printf("Heap overflow\n");
+        return NULL;
+    }
+
+    int free_mem = Heap_get_free_mem(heap);
+    if (free_mem < size)
+    {
+        printf("Not enough free memory\n");
+        return NULL;
+    }
+
+    char *memory = NULL;
+    int min_size = 0;
+    while (true)
+    {
+
+        min_size = getMin(h).size;
+
+        if (min_size > size)
+        {
+            Node node = extractMin(h);
+            memory = node.memory;
+            int new_size = node.size - size;
+            Node n1 = {memory, size};
+            char *new_memory = memory + size;
+            Node n2 = {new_memory, new_size};
+            insertHeap(h, n1);
+            insertHeap(h, n2);
+        }
+        else if (min_size == size)
+        {
+            Node node = extractMin(h);
+            void *ptr = node.memory + 1;
+            memory = (char *)ptr;
+            heap->arr[heap->bytes] = (char)size;
+            for (int j = 1; j <= size; j++)
+            {
+                heap->arr[heap->id + j] = 0;
+            }
+            heap->id += size + 1;
+            heap->bytes = heap->id;
+            break;
+        }
+        else
+        {
+            Node combined = {NULL, 0};
+            int combined_size = 0;
+            char *allocation_start = NULL;
+
+            while (min_size < size && h->count > 0)
+            {
+                Node node = extractMin(h);
+
+                if (combined.memory == NULL)
+                {
+                    combined.memory = node.memory;
+                    allocation_start = combined.memory;
+                }
+                combined_size += node.size;
+                min_size = combined_size;
+
+                if (min_size >= size)
+                {
+                    break;
+                }
+            }
+
+            if (combined_size >= size)
+            {
+                memory = allocation_start;
+                int offset = heap->id;
+                heap->arr[offset] = (char)size;
+
+                int j = 1;
+                int cpy_size = size;
+                while (cpy_size > 0)
+                {
+
+                    heap->arr[offset + j] = 0;
+                    j++;
+                    cpy_size--;
+                    if (cpy_size <= 0)
+                        break;
+                    while (heap->arr[offset + j] == 0)
+                    {
+                        int s = heap->arr[offset + j];
+                        j += s;
+                    }
+                }
+
+                int remaining_size = combined_size - size;
+
+                if (remaining_size > 0)
+                {
+                    char *remaining_memory = allocation_start + size;
+                    Node remaining_block = {remaining_memory, remaining_size};
+                    insertHeap(h, remaining_block);
+                }
+
+                heap->bytes += size + 1;
+                heap->id = offset + size + 1;
+                break;
+            }
+            else
+            {
+                printf("Unable to allocate memory: insufficient non-contiguous space\n");
+                return NULL;
+            }
+        }
+    }
+    return (void *)memory;
+}
+
+void Heap_ITUD(Heap *heap, void *ptr, MinHeap *h)
+{
+    char *memory = (char *)ptr;
+    int i;
+    for (i = 0; i < HEAP_SIZE; i++)
+    {
+        if (&heap->arr[i] == memory)
+        {
+            break;
+        }
+    }
+
+    if (i == HEAP_SIZE)
+    {
+        printf("Illegal memory address.\n");
+        return;
+    }
+
+    int size = heap->arr[i - 1];
+    heap->bytes -= size + 1;
+
+    if (size <= 0)
+    {
+        printf("Illegal memory size.\n");
+        return;
+    }
+    else
+    {
+        i -= 1;
+        while (i <= size)
+        {
+            heap->arr[i] = -1;
+            i++;
+        }
+    }
+    Node n = {memory, size};
+    insertHeap(h, n);
+}
+
+void Heap_print(Heap *heap)
+{
+    for (int i = 1; i < HEAP_SIZE; i += 1)
+    {
+        if (heap->arr[i] == -1)
+        {
+            printf("\033[1;32m%c", -37); // Green block
+        }
+        else
+        {
+            printf("\033[1;31m%c", -37); // Red block
+        }
+    }
+    printf("\033[0m\n"); // Reset color
+}
+
+int Heap_allocated_memory(Heap *heap)
+{
+    return heap->bytes - 1;
+}
+
 typedef struct Stack
 {
     char *Vs;
@@ -192,6 +487,8 @@ char *Img_decryption(const char *a, int size)
     return decrypted;
 }
 
+Heap heap;
+MinHeap h;
 int command(char str[], int clientsocket, char user[])
 {
     // parsing the command string
@@ -335,7 +632,7 @@ int command(char str[], int clientsocket, char user[])
                     return 1;
                 }
                 char ch[1024];
-                char *str = (char *)malloc(1024 * sizeof(char));
+                char *str = (char *)Heap_ITUN(&heap,1024 * sizeof(char),&h);
 
                 if (hasImageExtension(name))
                 {
@@ -386,8 +683,14 @@ int command(char str[], int clientsocket, char user[])
             return 1;
         }
 
-        const char *d_path = "/home/skyark/Documents/";
-        char *path = (char *)malloc(strlen(d_path) + strlen(name) + 1);
+        // char directory[100];
+        // fgets(directory, 100, stdin);
+
+        const char *d_path = "/home/skyark/Downloads/";
+
+        // strcpy(d_path, directory);
+
+        char *path = (char *)Heap_ITUN(&heap,strlen(d_path) + strlen(name) + 1,&h);
         strcpy(path, d_path);
         strcat(path, name);
         FILE *wr = fopen(path, "wb");
@@ -402,7 +705,7 @@ int command(char str[], int clientsocket, char user[])
         char c[1024];
         int byte;
         bool flag = false;
-        char *str = (char *)malloc(1024 * sizeof(char));
+        char *str = (char *)Heap_ITUN(&heap,1024 * sizeof(char),&h);
 
         if (hasImageExtension(name))
         {
@@ -433,6 +736,7 @@ int command(char str[], int clientsocket, char user[])
             do
             {
                 byte = recv(clientsocket, c, sizeof(c), 0);
+
                 c[byte] = '\0';
                 if (c[byte - 1] == '$')
                 {
@@ -440,12 +744,14 @@ int command(char str[], int clientsocket, char user[])
                     str = decryption(c, byte);
 
                     fwrite(str, 1, strlen(str), wr);
+
                     flag = true;
                 }
                 else
                 {
                     str = decryption(c, byte);
                     fwrite(str, 1, strlen(str), wr);
+
                     c[0] = '\0';
                 }
 
@@ -453,13 +759,15 @@ int command(char str[], int clientsocket, char user[])
         }
 
         fclose(wr);
-        free(path);
     }
     return 0;
 }
 
 int main()
 {
+    initializeHeap(&h);
+    Heap_init(&heap, &h);
+
     int status, valread, clientsocket;
     struct sockaddr_in serv_addr;
 
@@ -528,6 +836,11 @@ int main()
         if (strcmp(str, "clear") == 0)
         {
             system("clear");
+            continue;
+        }
+        if (strcmp(str, "exit") == 0)
+        {
+            system("exit");
             continue;
         }
         fgets(S, sizeof(S), stdin);
